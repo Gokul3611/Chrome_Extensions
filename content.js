@@ -121,6 +121,12 @@
   function fetchDefinition(word, callback) {
     if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
       let answered = false;
+      const fallback = () => {
+        if (answered) return;
+        answered = true;
+        directFetch(word, callback);
+      };
+
       try {
         chrome.runtime.sendMessage({ type: "GET_DEFINITION", word }, (res) => {
           if (answered) return;
@@ -128,19 +134,14 @@
             answered = true;
             callback(res.data, null);
           } else {
-            directFetch(word, callback);
+            fallback();
           }
         });
       } catch (e) {
-        directFetch(word, callback);
+        fallback();
       }
 
-      setTimeout(() => {
-        if (!answered) {
-          answered = true;
-          directFetch(word, callback);
-        }
-      }, 2000);
+      setTimeout(fallback, 2000);
     } else {
       directFetch(word, callback);
     }
@@ -148,7 +149,9 @@
 
   async function directFetch(word, callback) {
     try {
-      const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=1`);
+      const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=1`, {
+        signal: AbortSignal.timeout(3500)
+      });
       if (res.ok) {
         const items = await res.json();
         if (Array.isArray(items) && items.length > 0 && items[0].defs && items[0].defs.length > 0) {

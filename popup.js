@@ -26,29 +26,43 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function searchWord(word) {
-    result.innerHTML = '<div style="padding: 10px 0; color: #6b7280;">Searching...</div>';
+    result.textContent = "";
+    const loading = document.createElement("div");
+    loading.style.cssText = "padding: 10px 0; color: #6b7280;";
+    loading.textContent = "Searching...";
+    result.appendChild(loading);
 
     chrome.runtime.sendMessage({ type: "GET_DEFINITION", word }, (res) => {
       if (!res || !res.success || !res.data) {
-        result.innerHTML = `<div class="error">${res?.error || "Definition not found."}</div>`;
+        result.textContent = "";
+        const error = document.createElement("div");
+        error.className = "error";
+        error.textContent = res?.error || "Definition not found.";
+        result.appendChild(error);
         return;
       }
 
       const data = res.data;
-      let html = `<div style="font-size: 15px; font-weight: bold; margin-bottom: 6px; text-transform: capitalize;">${data.word}</div>`;
+      result.textContent = "";
+      const title = document.createElement("div");
+      title.style.cssText = "font-size: 15px; font-weight: bold; margin-bottom: 6px; text-transform: capitalize;";
+      title.textContent = data.word;
+      result.appendChild(title);
 
       data.meanings.forEach((m) => {
-        let items = "";
-        m.definitions.forEach((d) => {
-          items += `<li>${d}</li>`;
-        });
-        html += `
-          <div class="pos-title">${m.partOfSpeech}</div>
-          <ol>${items}</ol>
-        `;
-      });
+        const posTitle = document.createElement("div");
+        posTitle.className = "pos-title";
+        posTitle.textContent = m.partOfSpeech;
+        result.appendChild(posTitle);
 
-      result.innerHTML = html;
+        const list = document.createElement("ol");
+        m.definitions.forEach((d) => {
+          const item = document.createElement("li");
+          item.textContent = d;
+          list.appendChild(item);
+        });
+        result.appendChild(list);
+      });
     });
   }
 });

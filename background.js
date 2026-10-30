@@ -41,11 +41,12 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "define-word" && tab?.id) {
     const rawWord = (info.selectionText || "").trim();
-    if (!rawWord) return;
+    const word = rawWord.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length > 35) return;
 
     chrome.tabs.sendMessage(tab.id, {
       type: "SHOW_DEFINITION",
-      word: rawWord
+      word
     }).catch(() => {
       // If script wasn't injected, inject now and retry
       chrome.scripting.executeScript({
@@ -69,7 +70,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const raw = (request.word || "").trim();
     const word = raw.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
 
-    if (!word) {
+    if (!/^[a-z]+$/.test(word) || word.length > 35) {
       sendResponse({ success: false, error: "Please select an English word." });
       return false;
     }
@@ -81,7 +82,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     fetchDefinition(word)
       .then((data) => {
-        if (cache.size > 300) {
+        if (cache.size >= 300) {
           cache.delete(cache.keys().next().value);
         }
         cache.set(word, data);

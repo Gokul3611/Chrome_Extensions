@@ -31,7 +31,7 @@ No accounts. No tracking. No ads. Just the meaning of the word.
    ```
 3. Enable **Developer mode** (toggle in the top-right corner)
 4. Click **Load unpacked**
-5. Select the **`simple-dictionary-extension`** folder
+5. Select the cloned **`Chrome_Extensions`** folder (the folder containing `manifest.json`)
 6. Done ✅ — go to any webpage and double-click a word
 
 ---
@@ -39,7 +39,7 @@ No accounts. No tracking. No ads. Just the meaning of the word.
 ## 🗂️ File Structure
 
 ```
-simple-dictionary-extension/
+Chrome_Extensions/
 ├── manifest.json     # Extension config (Manifest V3)
 ├── content.js        # In-page triggers and floating definition window
 ├── background.js     # Service worker — fetches definitions, caches results
