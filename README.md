@@ -12,8 +12,10 @@ No accounts. No tracking. No ads. Just the meaning of the word.
 - **Highlight / drag** across any word → definition appears at your selection
 - **Right-click** any selected word → choose **"Define '[word]'"**
 - **Toolbar search** → click the extension icon and type any word manually
+- **Enable / Disable button** → control whether the extension responds on webpages
 - Clean, minimal popup anchored to your cursor — closes on `Esc` or click outside
 - Works on every webpage automatically after installation
+- Disabled mode stops automatic lookups, toolbar searches, API requests, and the context-menu action
 - **Zero dependencies** — no frameworks, no npm, no build step
 - **Resource efficient** — zero background CPU when idle; service worker sleeps between lookups
 

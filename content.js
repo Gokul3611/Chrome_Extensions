@@ -11,6 +11,18 @@
   let lastLookupTime = 0;
   let lastClickX = 0;
   let lastClickY = 0;
+  let enabled = true;
+
+  function refreshEnabled(callback) {
+    if (!chrome.storage?.local) {
+      callback(true);
+      return;
+    }
+    chrome.storage.local.get({ enabled: true }, (settings) => {
+      enabled = settings.enabled !== false;
+      callback(enabled);
+    });
+  }
 
   function cleanWord(str) {
     if (!str) return "";
@@ -130,9 +142,9 @@
       try {
         chrome.runtime.sendMessage({ type: "GET_DEFINITION", word }, (res) => {
           if (answered) return;
-          if (!chrome.runtime.lastError && res && res.success && res.data) {
+          if (!chrome.runtime.lastError && res) {
             answered = true;
-            callback(res.data, null);
+            callback(res.success && res.data ? res.data : null, res.error || "Definition not found.");
           } else {
             fallback();
           }
@@ -208,6 +220,7 @@
   }
 
   function triggerLookup(defaultX, defaultY) {
+    if (!enabled) return;
     const data = getSelectedWord();
     if (!data || !data.word) return;
 
@@ -226,6 +239,7 @@
 
   // TRIGGER 1: Mouse selection / Highlighting
   document.addEventListener("mouseup", (e) => {
+    if (!enabled) return;
     if (isInput(e.target)) return;
     if (activePopup && activePopup.contains(e.target)) return;
 
@@ -239,6 +253,7 @@
 
   // TRIGGER 2: Double Click
   document.addEventListener("dblclick", (e) => {
+    if (!enabled) return;
     if (isInput(e.target)) return;
     if (activePopup && activePopup.contains(e.target)) return;
 
@@ -277,6 +292,7 @@
   if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.type === "SHOW_DEFINITION" && msg.word) {
+        if (!enabled) return;
         const word = cleanWord(msg.word);
         if (word) {
           const data = getSelectedWord();
@@ -293,6 +309,14 @@
       }
     });
   }
+
+  refreshEnabled(() => {});
+  chrome.storage?.onChanged?.addListener((changes, areaName) => {
+    if (areaName === "local" && changes.enabled) {
+      enabled = changes.enabled.newValue !== false;
+      if (!enabled) removePopup();
+    }
+  });
 
   // Dismiss on outside click
   document.addEventListener("mousedown", (e) => {

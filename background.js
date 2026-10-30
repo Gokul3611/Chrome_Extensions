@@ -1,23 +1,39 @@
 // Simple English Dictionary - Background Service Worker
 
 const cache = new Map();
+const ENABLED_KEY = "enabled";
+
+function isEnabled(callback) {
+  chrome.storage.local.get({ [ENABLED_KEY]: true }, (settings) => {
+    callback(settings[ENABLED_KEY] !== false);
+  });
+}
 
 function setupContextMenu() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: "define-word",
-      title: "Define '%s'",
-      contexts: ["selection"]
-    }, () => {
-      if (chrome.runtime.lastError) {
-        // Ignored, avoids crashing
-      }
+  isEnabled((enabled) => {
+    chrome.contextMenus.removeAll(() => {
+      if (!enabled) return;
+
+      chrome.contextMenus.create({
+        id: "define-word",
+        title: "Define '%s'",
+        contexts: ["selection"]
+      }, () => {
+        if (chrome.runtime.lastError) {
+          // Ignored, avoids crashing
+        }
+      });
     });
   });
 }
 
 // Register context menu and inject into open tabs
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get(ENABLED_KEY, (settings) => {
+    if (settings[ENABLED_KEY] === undefined) {
+      chrome.storage.local.set({ [ENABLED_KEY]: true });
+    }
+  });
   setupContextMenu();
 
   // Inject content script into ALL currently open tabs immediately
@@ -37,60 +53,90 @@ chrome.runtime.onStartup.addListener(() => {
   setupContextMenu();
 });
 
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes[ENABLED_KEY]) {
+    setupContextMenu();
+  }
+});
+
 // Handle right-click context menu
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "define-word" && tab?.id) {
-    const rawWord = (info.selectionText || "").trim();
-    const word = rawWord.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length > 35) return;
+    isEnabled((enabled) => {
+      if (!enabled) return;
 
-    chrome.tabs.sendMessage(tab.id, {
-      type: "SHOW_DEFINITION",
-      word
-    }).catch(() => {
-      // If script wasn't injected, inject now and retry
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true },
-        files: ["content.js"]
-      }).then(() => {
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tab.id, {
-            type: "SHOW_DEFINITION",
-            word: rawWord
-          }).catch(() => {});
-        }, 100);
-      }).catch(() => {});
+      const rawWord = (info.selectionText || "").trim();
+      const word = rawWord.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length > 35) return;
+
+      chrome.tabs.sendMessage(tab.id, {
+        type: "SHOW_DEFINITION",
+        word
+      }).catch(() => {
+        // If script wasn't injected, inject now and retry
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id, allFrames: true },
+          files: ["content.js"]
+        }).then(() => {
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tab.id, {
+              type: "SHOW_DEFINITION",
+              word: rawWord
+            }).catch(() => {});
+          }, 100);
+        }).catch(() => {});
+      });
     });
   }
 });
 
 // Fetch definition on request
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "GET_STATUS") {
+    isEnabled((enabled) => sendResponse({ enabled }));
+    return true;
+  }
+
+  if (request.type === "SET_ENABLED") {
+    const enabled = request.enabled === true;
+    chrome.storage.local.set({ [ENABLED_KEY]: enabled }, () => {
+      sendResponse({ success: !chrome.runtime.lastError, enabled });
+    });
+    return true;
+  }
+
   if (request.type === "GET_DEFINITION") {
-    const raw = (request.word || "").trim();
-    const word = raw.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
+    isEnabled((enabled) => {
+      if (!enabled) {
+        sendResponse({ success: false, error: "Dictionary is disabled." });
+        return;
+      }
 
-    if (!/^[a-z]+$/.test(word) || word.length > 35) {
-      sendResponse({ success: false, error: "Please select an English word." });
-      return false;
-    }
+      const raw = (request.word || "").trim();
+      const word = raw.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
 
-    if (cache.has(word)) {
-      sendResponse({ success: true, data: cache.get(word) });
-      return false;
-    }
+      if (!/^[a-z]+$/.test(word) || word.length > 35) {
+        sendResponse({ success: false, error: "Please select an English word." });
+        return;
+      }
 
-    fetchDefinition(word)
-      .then((data) => {
-        if (cache.size >= 300) {
-          cache.delete(cache.keys().next().value);
-        }
-        cache.set(word, data);
-        sendResponse({ success: true, data });
-      })
-      .catch((err) => {
-        sendResponse({ success: false, error: err.message || "Definition not found." });
-      });
+      if (cache.has(word)) {
+        sendResponse({ success: true, data: cache.get(word) });
+        return;
+      }
+
+      fetchDefinition(word)
+        .then((data) => {
+          if (cache.size >= 300) {
+            cache.delete(cache.keys().next().value);
+          }
+          cache.set(word, data);
+          sendResponse({ success: true, data });
+        })
+        .catch((err) => {
+          sendResponse({ success: false, error: err.message || "Definition not found." });
+        });
+    });
 
     return true; // Keep message channel open for async response
   }
