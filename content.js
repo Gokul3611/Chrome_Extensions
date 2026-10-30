@@ -1,0 +1,311 @@
+// Simple English Dictionary - Content Script
+
+(() => {
+  // Guard against duplicate injections
+  if (window.__SIMPLE_DICT_INITIALIZED__) return;
+  window.__SIMPLE_DICT_INITIALIZED__ = true;
+
+  const POPUP_ID = "simple-dict-overlay-window";
+  let activePopup = null;
+  let lastLookupWord = "";
+  let lastLookupTime = 0;
+  let lastClickX = 0;
+  let lastClickY = 0;
+
+  function cleanWord(str) {
+    if (!str) return "";
+    return str.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "").toLowerCase();
+  }
+
+  function isInput(el) {
+    if (!el) return false;
+    const tag = (el.tagName || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || el.isContentEditable;
+  }
+
+  function removePopup() {
+    const el = document.getElementById(POPUP_ID);
+    if (el) el.remove();
+    activePopup = null;
+  }
+
+  function showPopup(word, targetX, targetY) {
+    removePopup();
+
+    const popup = document.createElement("div");
+    popup.id = POPUP_ID;
+
+    const width = 320;
+    const margin = 12;
+    const vpW = window.innerWidth;
+    const vpH = window.innerHeight;
+
+    let left = targetX !== undefined ? targetX - (width / 2) : (vpW - width) / 2;
+    let top = targetY !== undefined ? targetY + 12 : 80;
+
+    // Position above selection if overflowing below
+    if (top + 240 > vpH && targetY > 260) {
+      top = targetY - 260;
+    }
+
+    left = Math.max(margin, Math.min(left, vpW - width - margin));
+    top = Math.max(margin, Math.min(top, vpH - 80));
+
+    popup.style.cssText = `
+      position: fixed !important;
+      left: ${Math.round(left)}px !important;
+      top: ${Math.round(top)}px !important;
+      width: ${width}px !important;
+      max-width: calc(100vw - 24px) !important;
+      max-height: 400px !important;
+      background: #ffffff !important;
+      color: #111827 !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+      font-size: 13.5px !important;
+      line-height: 1.45 !important;
+      border: 2px solid #374151 !important;
+      border-radius: 8px !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+      z-index: 2147483647 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+      pointer-events: auto !important;
+      text-align: left !important;
+      box-sizing: border-box !important;
+    `;
+
+    popup.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f3f4f6; border-bottom:1px solid #d1d5db; box-sizing:border-box;">
+        <span style="font-size:15px; font-weight:700; color:#111827; text-transform:capitalize;">📖 ${escapeHtml(word)}</span>
+        <button id="simple-dict-close-btn" title="Close (Esc)" style="background:transparent; border:none; font-size:18px; font-weight:bold; color:#6b7280; cursor:pointer; line-height:1; padding:0 4px;">&times;</button>
+      </div>
+      <div id="simple-dict-body" style="padding:10px 14px; overflow-y:auto; max-height:330px; color:#374151; box-sizing:border-box;">
+        <div style="color:#6b7280; padding:10px 0;">Looking up definition...</div>
+      </div>
+    `;
+
+    (document.body || document.documentElement).appendChild(popup);
+    activePopup = popup;
+
+    popup.querySelector("#simple-dict-close-btn").addEventListener("click", removePopup);
+
+    fetchDefinition(word, (data, error) => {
+      if (!popup.isConnected) return;
+      const body = popup.querySelector("#simple-dict-body");
+      if (!body) return;
+
+      if (error || !data || !data.meanings || data.meanings.length === 0) {
+        body.innerHTML = `<div style="color:#dc2626; padding:8px 0;">${escapeHtml(error || `No definition found for "${word}".`)}</div>`;
+        return;
+      }
+
+      let html = "";
+      data.meanings.forEach((m) => {
+        let items = "";
+        m.definitions.forEach((def) => {
+          items += `<li style="margin-bottom:4px; color:#374151; list-style-type:decimal;">${escapeHtml(def)}</li>`;
+        });
+        html += `
+          <div style="margin-bottom:8px;">
+            <div style="font-weight:700; font-size:11px; text-transform:uppercase; color:#2563eb; margin-bottom:3px; letter-spacing:0.04em;">${escapeHtml(m.partOfSpeech)}</div>
+            <ol style="padding-left:18px; margin:0 0 6px 0;">${items}</ol>
+          </div>
+        `;
+      });
+
+      body.innerHTML = html;
+    });
+  }
+
+  function fetchDefinition(word, callback) {
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+      let answered = false;
+      try {
+        chrome.runtime.sendMessage({ type: "GET_DEFINITION", word }, (res) => {
+          if (answered) return;
+          if (!chrome.runtime.lastError && res && res.success && res.data) {
+            answered = true;
+            callback(res.data, null);
+          } else {
+            directFetch(word, callback);
+          }
+        });
+      } catch (e) {
+        directFetch(word, callback);
+      }
+
+      setTimeout(() => {
+        if (!answered) {
+          answered = true;
+          directFetch(word, callback);
+        }
+      }, 2000);
+    } else {
+      directFetch(word, callback);
+    }
+  }
+
+  async function directFetch(word, callback) {
+    try {
+      const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=1`);
+      if (res.ok) {
+        const items = await res.json();
+        if (Array.isArray(items) && items.length > 0 && items[0].defs && items[0].defs.length > 0) {
+          const item = items[0];
+          const posMap = { n: "noun", v: "verb", adj: "adjective", adv: "adverb", u: "definition" };
+          const grouped = {};
+          item.defs.forEach((d) => {
+            const parts = d.split("\t");
+            const code = parts[0] ? parts[0].trim() : "u";
+            const text = parts[1] ? parts[1].trim() : d;
+            const pos = posMap[code] || "general";
+            if (!grouped[pos]) grouped[pos] = [];
+            if (grouped[pos].length < 3) grouped[pos].push(text);
+          });
+          const meanings = Object.keys(grouped).map((k) => ({ partOfSpeech: k, definitions: grouped[k] }));
+          callback({ word: item.word || word, meanings }, null);
+          return;
+        }
+      }
+    } catch (e) {}
+
+    callback(null, `No definition found for "${word}".`);
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function getSelectedWord() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+
+    const raw = sel.toString().trim();
+    if (!raw) return null;
+
+    // Single English word only (no spaces, 2 to 35 letters)
+    if (/\s/.test(raw)) return null;
+
+    const cleaned = cleanWord(raw);
+    if (!cleaned || cleaned.length < 2 || cleaned.length > 35) return null;
+
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    return {
+      word: cleaned,
+      rect: rect
+    };
+  }
+
+  function triggerLookup(defaultX, defaultY) {
+    const data = getSelectedWord();
+    if (!data || !data.word) return;
+
+    // Deduplicate rapid successive events (e.g. mouseup followed by dblclick within 400ms)
+    const now = Date.now();
+    if (data.word === lastLookupWord && (now - lastLookupTime) < 400 && activePopup) {
+      return;
+    }
+    lastLookupWord = data.word;
+    lastLookupTime = now;
+
+    const x = (data.rect.width > 0) ? (data.rect.left + data.rect.width / 2) : defaultX;
+    const y = (data.rect.height > 0) ? data.rect.bottom : defaultY;
+    showPopup(data.word, x, y);
+  }
+
+  // TRIGGER 1: Mouse selection / Highlighting
+  document.addEventListener("mouseup", (e) => {
+    if (isInput(e.target)) return;
+    if (activePopup && activePopup.contains(e.target)) return;
+
+    lastClickX = e.clientX;
+    lastClickY = e.clientY;
+
+    setTimeout(() => {
+      triggerLookup(e.clientX, e.clientY);
+    }, 20);
+  });
+
+  // TRIGGER 2: Double Click
+  document.addEventListener("dblclick", (e) => {
+    if (isInput(e.target)) return;
+    if (activePopup && activePopup.contains(e.target)) return;
+
+    lastClickX = e.clientX;
+    lastClickY = e.clientY;
+
+    setTimeout(() => {
+      let data = getSelectedWord();
+      let word = data ? data.word : "";
+
+      // Fallback: extract word under cursor if selection is collapsed
+      if (!word && document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range) {
+          range.expand("word");
+          const raw = range.toString().trim();
+          if (!/\s/.test(raw)) {
+            word = cleanWord(raw);
+          }
+        }
+      }
+
+      if (word && word.length >= 2) {
+        const now = Date.now();
+        if (word === lastLookupWord && (now - lastLookupTime) < 400 && activePopup) {
+          return;
+        }
+        lastLookupWord = word;
+        lastLookupTime = now;
+        showPopup(word, e.clientX, e.clientY);
+      }
+    }, 20);
+  });
+
+  // TRIGGER 3: Right-click Context Menu
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (msg.type === "SHOW_DEFINITION" && msg.word) {
+        const word = cleanWord(msg.word);
+        if (word) {
+          const data = getSelectedWord();
+          const x = (data && data.rect.width > 0) ? (data.rect.left + data.rect.width / 2) : (lastClickX || window.innerWidth / 2);
+          const y = (data && data.rect.height > 0) ? data.rect.bottom : (lastClickY || 100);
+          showPopup(word, x, y);
+        }
+      }
+
+      if (msg.type === "GET_CURRENT_SELECTION") {
+        const data = getSelectedWord();
+        sendResponse({ word: data ? data.word : "" });
+        return false;
+      }
+    });
+  }
+
+  // Dismiss on outside click
+  document.addEventListener("mousedown", (e) => {
+    lastClickX = e.clientX;
+    lastClickY = e.clientY;
+
+    if (!activePopup) return;
+    if (!activePopup.contains(e.target)) {
+      removePopup();
+    }
+  });
+
+  // Dismiss on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      removePopup();
+    }
+  });
+})();

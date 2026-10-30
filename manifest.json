@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Simple English Dictionary",
+  "version": "1.0.3",
+  "description": "Double-click or highlight any English word on any webpage to see its definition instantly.",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://api.datamuse.com/*",
+    "https://api.dictionaryapi.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Simple English Dictionary"
+  }
+}

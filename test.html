@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dictionary Extension Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 750px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #1f2937;
+    }
+    h1 {
+      color: #111;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 8px;
+    }
+    .test-box {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      padding: 24px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 16px;
+    }
+    .word-highlight {
+      background-color: #fef08a;
+      padding: 1px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simple Dictionary Test Page</h1>
+
+  <div class="test-box">
+    <h3>Double-click or highlight (drag across) any word below:</h3>
+    <p style="margin-top: 14px;">
+      <span class="word-highlight">Serendipity</span> is the occurrence of finding valuable or agreeable things not sought for.
+    </p>
+    <p style="margin-top: 14px;">
+      Reading literature expands vocabulary and fosters intellectual <span class="word-highlight">curiosity</span>.
+    </p>
+    <p style="margin-top: 14px;">
+      Perseverance and <span class="word-highlight">diligence</span> are paramount for accomplishing ambitious aspirations.
+    </p>
+  </div>
+
+  <!-- Included directly so test.html works instantly even if file:/// extension permissions are disabled -->
+  <script src="content.js"></script>
+</body>
+</html>
