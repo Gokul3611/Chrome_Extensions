@@ -9,34 +9,46 @@
       margin: 0;
       padding: 0;
     }
+    :root {
+      --ink: #171717;
+      --muted: #77736b;
+      --line: #dedbd4;
+      --paper: #f7f6f2;
+      --surface: #ffffff;
+      --accent: #c9f269;
+      --danger: #b94a3f;
+    }
     body {
-      width: 320px;
+      width: 348px;
       min-height: 200px;
-      max-height: 450px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      font-size: 13.5px;
-      color: #111827;
-      background: #ffffff;
-      padding: 12px;
+      max-height: 520px;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+      background: var(--paper);
+      padding: 18px;
     }
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 15px;
+      margin-bottom: 16px;
     }
     .header h1 {
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.04em;
+      font-weight: 800;
     }
     .status-badge {
-      font-size: 11px;
-      background: #dcfce7;
-      color: #15803d;
-      padding: 2px 6px;
-      border-radius: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      background: var(--accent);
+      color: var(--ink);
+      padding: 5px 8px;
+      border-radius: 999px;
       font-weight: 600;
     }
     .toggle-row {
@@ -44,84 +56,102 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      margin-bottom: 10px;
-      padding: 8px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
+      margin-bottom: 14px;
+      padding: 12px 13px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    #toggle-label {
+      color: var(--muted);
+      font-size: 12px;
     }
     .toggle-button {
-      min-width: 74px;
-      padding: 5px 9px;
+      min-width: 76px;
+      padding: 7px 10px;
     }
     .input-box {
       display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin-bottom: 14px;
     }
     input {
       flex: 1;
-      padding: 6px 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 13.5px;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
       outline: none;
     }
     input:focus {
-      border-color: #2563eb;
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(201, 242, 105, 0.5);
     }
     button {
-      padding: 6px 12px;
-      background: #2563eb;
+      padding: 9px 14px;
+      background: var(--ink);
       color: #ffffff;
       border: none;
-      border-radius: 6px;
-      font-size: 13px;
+      border-radius: 9px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease;
     }
     button:hover {
-      background: #1d4ed8;
+      background: #3a3a38;
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
     }
     #result {
-      max-height: 280px;
+      max-height: 310px;
       overflow-y: auto;
+      scrollbar-width: thin;
     }
     .pos-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      color: #2563eb;
-      margin-top: 8px;
-      margin-bottom: 3px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-top: 14px;
+      margin-bottom: 5px;
     }
     ol {
-      padding-left: 18px;
-      margin-bottom: 8px;
+      padding-left: 21px;
+      margin-bottom: 10px;
     }
     li {
-      margin-bottom: 4px;
-      color: #374151;
+      margin-bottom: 6px;
+      color: #41413e;
+      line-height: 1.5;
     }
     .tip {
       font-size: 12px;
-      color: #6b7280;
-      background: #f9fafb;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #e5e7eb;
-      line-height: 1.4;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 13px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      line-height: 1.55;
     }
     .error {
-      color: #dc2626;
+      color: var(--danger);
       font-size: 13px;
-      padding: 8px 0;
+      padding: 10px 0;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>📖 Dictionary</h1>
+    <h1>Dictionary / 01</h1>
     <span id="status-badge" class="status-badge">Active</span>
   </div>
 
@@ -137,7 +167,8 @@
 
   <div id="result">
     <div class="tip">
-      👉 <strong>Tip:</strong> Double-click or highlight any word on any webpage you browse to see its definition in a simple popup window!
+      <strong>Quick lookup.</strong><br>
+      Double-click or highlight any word on a webpage to see its definition.
     </div>
   </div>
 

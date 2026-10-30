@@ -70,14 +70,14 @@
       width: ${width}px !important;
       max-width: calc(100vw - 24px) !important;
       max-height: 400px !important;
-      background: #ffffff !important;
-      color: #111827 !important;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
-      font-size: 13.5px !important;
-      line-height: 1.45 !important;
-      border: 2px solid #374151 !important;
-      border-radius: 8px !important;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+      background: #f7f6f2 !important;
+      color: #171717 !important;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      font-size: 13px !important;
+      line-height: 1.5 !important;
+      border: 1px solid #171717 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 18px 45px rgba(23, 23, 23, 0.24) !important;
       z-index: 2147483647 !important;
       display: flex !important;
       flex-direction: column !important;
@@ -88,12 +88,12 @@
     `;
 
     popup.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f3f4f6; border-bottom:1px solid #d1d5db; box-sizing:border-box;">
-        <span style="font-size:15px; font-weight:700; color:#111827; text-transform:capitalize;">📖 ${escapeHtml(word)}</span>
-        <button id="simple-dict-close-btn" title="Close (Esc)" style="background:transparent; border:none; font-size:18px; font-weight:bold; color:#6b7280; cursor:pointer; line-height:1; padding:0 4px;">&times;</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 15px; background:#ffffff; border-bottom:1px solid #dedbd4; box-sizing:border-box;">
+        <span style="font-size:16px; font-weight:800; letter-spacing:-0.03em; color:#171717; text-transform:capitalize;">${escapeHtml(word)}</span>
+        <button id="simple-dict-close-btn" title="Close (Esc)" style="background:transparent; border:none; font-size:20px; font-weight:400; color:#77736b; cursor:pointer; line-height:1; padding:0 2px;">&times;</button>
       </div>
-      <div id="simple-dict-body" style="padding:10px 14px; overflow-y:auto; max-height:330px; color:#374151; box-sizing:border-box;">
-        <div style="color:#6b7280; padding:10px 0;">Looking up definition...</div>
+      <div id="simple-dict-body" style="padding:12px 15px; overflow-y:auto; max-height:330px; color:#41413e; box-sizing:border-box;">
+        <div style="color:#77736b; padding:10px 0;">Looking up definition...</div>
       </div>
     `;
 
@@ -116,12 +116,12 @@
       data.meanings.forEach((m) => {
         let items = "";
         m.definitions.forEach((def) => {
-          items += `<li style="margin-bottom:4px; color:#374151; list-style-type:decimal;">${escapeHtml(def)}</li>`;
+          items += `<li style="margin-bottom:6px; color:#41413e; list-style-type:decimal;">${escapeHtml(def)}</li>`;
         });
         html += `
           <div style="margin-bottom:8px;">
-            <div style="font-weight:700; font-size:11px; text-transform:uppercase; color:#2563eb; margin-bottom:3px; letter-spacing:0.04em;">${escapeHtml(m.partOfSpeech)}</div>
-            <ol style="padding-left:18px; margin:0 0 6px 0;">${items}</ol>
+            <div style="font-weight:700; font-size:10px; text-transform:uppercase; color:#77736b; margin-bottom:5px; letter-spacing:0.12em;">${escapeHtml(m.partOfSpeech)}</div>
+            <ol style="padding-left:19px; margin:0 0 8px 0;">${items}</ol>
           </div>
         `;
       });
